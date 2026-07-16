@@ -1,0 +1,12 @@
+[Unit]
+Description=Rotary encoder websocket bridge (shades_of_blue_round)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/awd/shades_of_blue_round/encoder_bridge.py
+WorkingDirectory=/home/awd/shades_of_blue_round
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

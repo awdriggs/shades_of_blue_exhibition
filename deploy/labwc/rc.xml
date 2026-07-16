@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <keyboard>
+    <default />
+    <keybind key="Escape">
+      <action name="Execute" command="pkill -x chromium" />
+    </keybind>
+  </keyboard>
+</openbox_config>

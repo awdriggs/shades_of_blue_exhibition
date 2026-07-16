@@ -1,0 +1,12 @@
+/usr/bin/lwrespawn /usr/bin/pcmanfm-pi &
+/usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+/usr/bin/kanshi &
+/usr/bin/lxsession-xdg-autostart
+
+# --- shades_of_blue_round kiosk ---
+# encoder-bridge.service and kiosk-http.service (systemd --user) are already
+# running by this point thanks to `loginctl enable-linger`. This just waits
+# for the http server and launches the browser full-screen over it.
+# Escape (bound in rc.xml) kills chromium and drops back to this desktop;
+# deploy/start-kiosk.desktop (or launch-kiosk.sh) gets back in.
+/home/awd/shades_of_blue_round/deploy/launch-kiosk.sh &

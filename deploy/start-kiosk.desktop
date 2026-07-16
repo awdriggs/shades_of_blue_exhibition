@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Start Kiosk
+Comment=Re-enter the shades_of_blue_round kiosk display
+Exec=/home/awd/shades_of_blue_round/deploy/launch-kiosk.sh
+Icon=chromium
+Terminal=false

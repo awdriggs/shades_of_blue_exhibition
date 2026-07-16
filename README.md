@@ -11,7 +11,10 @@ visualization of ambient color-sensor readings.
 python3 encoder_bridge.py
 ```
 
-Listens on `ws://localhost:8765` and broadcasts the encoder state (0–7).
+Listens on `ws://localhost:8765` and broadcasts raw rotation ticks
+(`{"delta": 1|-1}`) plus idle-timeout resets (`{"reset": true}`) — it doesn't
+track an absolute reading count itself; `sketch.js` does, clamped against
+whatever data it actually has for the hardcoded device.
 Requires `gpiozero` and `websockets`, and access to GPIO 17/27.
 
 **2. Serve and view the page**

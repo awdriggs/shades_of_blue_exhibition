@@ -1,18 +1,20 @@
 const DEVICE_ID = 'ams01';
-const MINUTES_PER_DAY = 1440;
-const MAX_DAYS = 7;
-const MAX_LIMIT = MAX_DAYS * MINUTES_PER_DAY;
+const FETCH_LIMIT = 1_000_000; // effectively "everything" the API has for this device
+
+const READINGS_DEFAULT = 1440; // 24h of one-minute readings, matches the bridge's idle-reset default
+const READINGS_STEP = 100;
 
 const DIAMETER = 1080;
 
-// fixed overlap, sized to the finest slice (7 days) regardless of current state
-// (uses Math.PI directly -- p5's TWO_PI isn't attached to window until setup)
-const OVERLAP = 10 * ((2 * Math.PI) / MAX_LIMIT);
-
 let bars = [];
-let encoderState = 1;
+let count = READINGS_DEFAULT;
 
-// encoder state stream, fed by the local bridge (gpiozero -> websocket)
+// encoder direction stream, fed by the local bridge (gpiozero -> websocket).
+// the bridge is a dumb relay -- it only reports raw ticks/resets, not an
+// absolute value -- because only this side knows how much data currently
+// exists (it changes live, and differs per device). Clamping happens here,
+// on every tick, so a spin-past-the-end never leaves a "dead zone" before
+// reversing direction has a visible effect.
 const encoderSocket = new WebSocket('ws://localhost:8765');
 
 encoderSocket.onopen = () => {
@@ -30,8 +32,13 @@ encoderSocket.onerror = (error) => {
 encoderSocket.onmessage = (event) => {
   try {
     const data = JSON.parse(event.data);
-    if (data.type === 'encoder' && typeof data.value === 'number') {
-      encoderState = data.value;
+    if (data.type !== 'encoder') return;
+    if (data.reset) {
+      count = READINGS_DEFAULT;
+      redraw();
+    } else if (typeof data.delta === 'number') {
+      const maxCount = Math.max(1, bars.length);
+      count = constrain(count + data.delta * READINGS_STEP, 1, maxCount);
       redraw();
     }
   } catch (error) {
@@ -62,7 +69,6 @@ dataSocket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'data' && data.values && data.device_id === DEVICE_ID) {
       bars.unshift({ values: data.values });
-      if (bars.length > MAX_LIMIT) bars.pop();
       redraw();
     }
   } catch (error) {
@@ -72,7 +78,7 @@ dataSocket.onmessage = (event) => {
 
 function preload() {
   loadJSON(
-    `https://micro-api.awdokku.site/api/readings/shades-of-blue?limit=${MAX_LIMIT}&device=${DEVICE_ID}`,
+    `https://micro-api.awdokku.site/api/readings/shades-of-blue?limit=${FETCH_LIMIT}&device=${DEVICE_ID}`,
     (data) => { bars = data.readings; }
   );
 }
@@ -92,11 +98,7 @@ function draw() {
 
   if (bars.length === 0) return;
 
-  const dCount = constrain(
-    encoderState <= 0 ? 1 : encoderState * MINUTES_PER_DAY,
-    1,
-    bars.length
-  );
+  const dCount = constrain(count, 1, bars.length);
   const cx = width / 2;
   const cy = height / 2;
 
@@ -107,6 +109,10 @@ function draw() {
     circle(cx, cy, DIAMETER);
     return;
   }
+
+  // fixed overlap, sized to the finest slice this device currently has
+  // (uses Math.PI directly -- p5's TWO_PI isn't attached to window until setup)
+  const overlap = 10 * ((2 * Math.PI) / bars.length);
 
   // black backdrop under the wedges: any leftover sub-pixel seam shows as a
   // near-invisible dark sliver instead of a bright white line
@@ -120,7 +126,7 @@ function draw() {
   // against that opaque color instead of the (bright, seam-revealing) backdrop
   for (let i = 0; i < dCount; i++) {
     const a0 = map(i, 0, dCount, -HALF_PI, -HALF_PI + TWO_PI);
-    const a1 = map(i + 1, 0, dCount, -HALF_PI, -HALF_PI + TWO_PI) + OVERLAP;
+    const a1 = map(i + 1, 0, dCount, -HALF_PI, -HALF_PI + TWO_PI) + overlap;
     const rgb = bars[i].values;
     fill(rgb.r, rgb.g, rgb.b);
     arc(cx, cy, DIAMETER, DIAMETER, a0, a1, PIE);
